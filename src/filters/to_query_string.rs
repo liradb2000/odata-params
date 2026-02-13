@@ -117,8 +117,19 @@ fn write_string<W: Write>(writer: &mut W, expr: &Expr, recursive_call: bool) -> 
             write!(writer, ")")
         }
 
+        // Handle lambda expressions.
+        Expr::Lambda(lhs, op, var, expr) => {
+            write_string(writer, lhs, true)?;
+            write!(writer, "/{op}({var}:")?;
+            write_string(writer, expr, true)?;
+            write!(writer, ")")
+        }
+
         // Handle identifiers.
         Expr::Identifier(name) => write!(writer, "{name}"),
+
+        // Handle parameter aliases.
+        Expr::Alias(name) => write!(writer, "{name}"),
 
         // Handle values.
         Expr::Value(value) => write_value(writer, value),

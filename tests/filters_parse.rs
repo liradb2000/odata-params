@@ -1,6 +1,6 @@
 use odata_params::bigdecimal::BigDecimal;
 use odata_params::filters::CompareOperator::*;
-use odata_params::filters::{parse_str, Expr, Value};
+use odata_params::filters::{parse_str, Expr, LambdaOperator, Value};
 use std::str::FromStr;
 
 #[test]
@@ -21,6 +21,57 @@ fn or_grouping() {
                 Expr::Identifier("isActive".to_owned()).into(),
                 Equal,
                 Expr::Value(Value::Bool(true)).into()
+            )
+            .into()
+        )
+    );
+}
+
+#[test]
+fn lambda_any_multiple_or() {
+    let filter = "labels/any(label: label eq 'Architecture') or labels/any(label: label eq 'Structural') or labels/any(label: label eq 'Heating')";
+    let result = parse_str(filter).expect("valid filter tree");
+
+    assert_eq!(
+        result,
+        Expr::Or(
+            Expr::Lambda(
+                Expr::Identifier("labels".to_owned()).into(),
+                LambdaOperator::Any,
+                "label".to_owned(),
+                Expr::Compare(
+                    Expr::Identifier("label".to_owned()).into(),
+                    Equal,
+                    Expr::Value(Value::String("Architecture".to_owned())).into()
+                )
+                .into()
+            )
+            .into(),
+            Expr::Or(
+                Expr::Lambda(
+                    Expr::Identifier("labels".to_owned()).into(),
+                    LambdaOperator::Any,
+                    "label".to_owned(),
+                    Expr::Compare(
+                        Expr::Identifier("label".to_owned()).into(),
+                        Equal,
+                        Expr::Value(Value::String("Structural".to_owned())).into()
+                    )
+                    .into()
+                )
+                .into(),
+                Expr::Lambda(
+                    Expr::Identifier("labels".to_owned()).into(),
+                    LambdaOperator::Any,
+                    "label".to_owned(),
+                    Expr::Compare(
+                        Expr::Identifier("label".to_owned()).into(),
+                        Equal,
+                        Expr::Value(Value::String("Heating".to_owned())).into()
+                    )
+                    .into()
+                )
+                .into()
             )
             .into()
         )

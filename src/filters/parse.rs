@@ -1,4 +1,4 @@
-use super::{CompareOperator, Expr, ParseError, Value};
+use super::{CompareOperator, Expr, LambdaOperator, ParseError, Value};
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, FixedOffset, NaiveDate, NaiveTime, Utc};
 use std::str::FromStr;
@@ -30,7 +30,7 @@ enum AfterValueExpr {
 peg::parser! {
     /// Parses OData v4 `$filter` expressions.
     grammar odata_filter() for str {
-        use super::{Expr, CompareOperator, Value, ParseError};
+        use super::{Expr, CompareOperator, LambdaOperator, Value, ParseError};
 
         /// Entry point for parsing a filter expression string.
         pub(super) rule parse_str() -> Result<Expr, ParseError>
@@ -58,10 +58,12 @@ peg::parser! {
             / "in" _ "(" _ r:filter_list() _ ")" { Ok(AfterValueExpr::In(r?)) }
             / { Ok(AfterValueExpr::End) }
 
-        /// Parses a value expression, which can be a function call, a value, or an identifier.
+        /// Parses a value expression, which can be a function call, a lambda, a value, an alias, or an identifier.
         rule value_expr() -> Result<Expr, ParseError>
             = function_call()
+            / lambda_expr()
             / v:value() { Ok(Expr::Value(v?)) }
+            / alias_expr()
             / i:identifier() { Ok(Expr::Identifier(i)) }
 
         /// Parses a comparison operator.
@@ -72,10 +74,25 @@ peg::parser! {
             / "ge" { CompareOperator::GreaterOrEqual }
             / "lt" { CompareOperator::LessThan }
             / "le" { CompareOperator::LessOrEqual }
+            / "has" { CompareOperator::Has }
 
         /// Parses a function call with a name and arguments.
         rule function_call() -> Result<Expr, ParseError>
             = f:identifier() _ "(" _ l:filter_list() _ ")" { Ok(Expr::Function(f, l?)) }
+
+        /// Parses a lambda expression (any/all).
+        rule lambda_expr() -> Result<Expr, ParseError>
+            = i:identifier() "/" method:lambda_method() "(" _ v:identifier() _ ":" _ e:filter() _ ")" {
+                Ok(Expr::Lambda(Box::new(Expr::Identifier(i)), method, v, Box::new(e?)))
+            }
+
+        rule lambda_method() -> LambdaOperator
+            = "any" { LambdaOperator::Any }
+            / "all" { LambdaOperator::All }
+
+        /// Parses a parameter alias.
+        rule alias_expr() -> Result<Expr, ParseError>
+            = "@" i:identifier() { Ok(Expr::Alias(format!("@{}", i))) }
 
         /// Parses an identifier.
         rule identifier() -> String

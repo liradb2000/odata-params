@@ -124,11 +124,35 @@ pub enum Expr {
     /// Function call with a name and a list of arguments.
     Function(String, Vec<Expr>),
 
+    /// Lambda expression (any/all)
+    /// Structure: (Collection Identifier, Operator, Lambda Variable, Filter Expression)
+    Lambda(Box<Expr>, LambdaOperator, String, Box<Expr>),
+
     /// An identifier.
     Identifier(String),
 
+    /// A parameter alias (e.g., @p1)
+    Alias(String),
+
     /// A constant value.
     Value(Value),
+}
+
+/// Represents the lambda operators 'any' and 'all'.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum LambdaOperator {
+    Any,
+    All,
+}
+
+impl std::fmt::Display for LambdaOperator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LambdaOperator::Any => write!(f, "any"),
+            LambdaOperator::All => write!(f, "all"),
+        }
+    }
 }
 
 /// Represents the various comparison operators.
@@ -152,6 +176,9 @@ pub enum CompareOperator {
 
     /// Less than or equal to.
     LessOrEqual,
+
+    /// Has operator (for bit flags or enumeration checks).
+    Has,
 }
 
 /// Converts a `CompareOperator` to its string representation.
@@ -164,6 +191,7 @@ impl std::fmt::Display for CompareOperator {
             CompareOperator::GreaterOrEqual => write!(f, "ge"),
             CompareOperator::LessThan => write!(f, "lt"),
             CompareOperator::LessOrEqual => write!(f, "le"),
+            CompareOperator::Has => write!(f, "has"),
         }
     }
 }
@@ -230,6 +258,7 @@ impl PartialEq for Type {
 ///
 /// let identifiers_map: IdentifiersTypeMap = map.into();
 /// ```
+#[derive(Clone)]
 pub struct IdentifiersTypeMap(HashMap<String, Type>);
 
 /// Represents a map of functions to their corresponding argument types, optional variadic argument type, and return type.

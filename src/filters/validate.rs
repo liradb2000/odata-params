@@ -124,7 +124,7 @@ impl Expr {
                     }
                 })?;
 
-                println!(":: {types:?}, {variadic:?}, {args:?}");
+                // println!(":: {types:?}, {variadic:?}, {args:?}");
 
                 if (variadic.is_none() && types.len() != args.len())
                     || (variadic.is_some() && types.len() > args.len())
@@ -168,10 +168,49 @@ impl Expr {
                 Ok(*ret)
             }
 
+            Expr::Lambda(lhs, _, var, expr) => {
+                // Ensure LHS is valid (typically a collection, but we just check if it resolves)
+                let _lhs_type = Self::validate(lhs, identifiers, functions)?;
+
+                // Create a new scope for the lambda variable
+                let mut scoped_identifiers = identifiers.clone();
+                // We cannot easily determine the type of the lambda variable without schema knowledge
+                // of the collection. For now, we assume it's `Type::Null` (a placeholder for any)
+                // or we rely on the user to ensure structural correctness.
+                //
+                // In a full implementation, LHS would be a `Collection<T>` and `var` would be `T`.
+                // Here, we just insert it to avoid "UndefinedIdentifier" errors.
+                scoped_identifiers.0.insert(var.clone(), Type::Null);
+
+                let expr_type = Self::validate(expr, &scoped_identifiers, functions)?;
+
+                if expr_type == Type::Boolean {
+                    Ok(Type::Boolean)
+                } else {
+                    Err(ValidationError::LogicalNotRequiresBoolean { given: expr_type })
+                }
+            }
+
             Expr::Identifier(identifier) => {
-                identifiers.0.get(identifier).copied().ok_or_else(|| {
+                // If type is Type::Null, it matches everything (used for lambda vars without schema)
+                let t = identifiers.0.get(identifier).copied().ok_or_else(|| {
                     ValidationError::UndefinedIdentifier {
                         name: identifier.to_owned(),
+                    }
+                })?;
+                
+                // If the identifier maps to Null (wildcard), we might need to handle it carefully.
+                // For now, we return Null as the type, which needs to be compatible with others
+                // in Compare check. The `Type::eq` impl handles `Type::Null`.
+                Ok(t)
+            }
+
+            Expr::Alias(name) => {
+                // Check if alias is defined in the identifiers map.
+                // Aliases like @p1 should be treated similarly to identifiers for validation purposes.
+                identifiers.0.get(name).copied().ok_or_else(|| {
+                    ValidationError::UndefinedIdentifier {
+                        name: name.to_owned(),
                     }
                 })
             }
