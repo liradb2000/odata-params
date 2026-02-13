@@ -16,9 +16,6 @@ that are supported and not supported will be added in the next release.
 - **Function Calls**: Ex: `startswith`, `endswith`, `contains`, `concat`
 - **Grouping**: Nested expressions with parentheses
 - **Data Types**: String, Number, Boolean, Date, Time, DateTime with Time Zone
-
-### Not Yet Implemented
-
 - **Lambda Functions**: `any`, `all`
 - **Parameter Aliases**: `@something`
 - **The `has` Operator**
