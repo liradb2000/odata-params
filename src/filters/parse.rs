@@ -95,8 +95,28 @@ peg::parser! {
             = "@" i:identifier() { Ok(Expr::Alias(format!("@{}", i))) }
 
         /// Parses an identifier.
+        ///
+        /// GVCS R6 (2026-07-25): widened from ASCII-only to arbitrary
+        /// UNICODE. The IFC plugin keys `pset_*`/`qto_*` columns by the
+        /// ORIGINAL property-set and property names — Korean included
+        /// (`pset_치수_길이.값`) — and the previous class
+        /// (`[a-zA-Z_][a-zA-Z_0-9]+`) could not parse them, so the whole
+        /// predicate failed to parse and was SILENTLY dropped, degrading
+        /// to an unfiltered full scan.
+        ///
+        /// Three widenings, each load-bearing:
+        ///   * `is_alphabetic()` / `is_alphanumeric()` — Unicode letters,
+        ///     so Korean/CJK/accented keys parse.
+        ///   * `*` instead of `+` on the tail — a ONE-character
+        ///     identifier (`w eq 5`) is legal; the old rule demanded two.
+        ///   * `.` in the tail — dotted property paths (`길이.값`) are one
+        ///     identifier, matching how the plugin names the column.
+        ///
+        /// Digits still cannot START an identifier, so numeric literals
+        /// remain unambiguous.
         rule identifier() -> String
-            = s:$(['a'..='z'|'A'..='Z'|'_']['a'..='z'|'A'..='Z'|'_'|'0'..='9']+) { s.to_string() }
+            = s:$([c if c.is_alphabetic() || c == '_']
+                  [c if c.is_alphanumeric() || c == '_' || c == '.']*) { s.to_string() }
 
         /// Parses a value, which can be a string, datetime, date, time, number, boolean, or null.
         rule value() -> Result<Value, ParseError>
