@@ -114,9 +114,23 @@ peg::parser! {
         ///
         /// Digits still cannot START an identifier, so numeric literals
         /// remain unambiguous.
+        ///   * `\<any>` in the tail — a BACKSLASH ESCAPE, so a key may carry
+        ///     any character at all. The IFC plugin escapes every character
+        ///     that is not bare-legal, which makes the (set, property) -> key
+        ///     mapping INJECTIVE and therefore lossless: `길이.값` stores as
+        ///     `길이\.값`, distinct from the two-segment `길이.값`, and
+        ///     `MATERIAL SPECIFICATION` survives as `MATERIAL\ SPECIFICATION`
+        ///     rather than being flattened. The escape is matched BEFORE the
+        ///     plain class so `\.` is one unit and never terminates the token.
+        ///
+        ///     The captured string keeps the backslashes RAW — the stored
+        ///     vortex field name is escaped the same way, so a filter token and
+        ///     a column name compare byte-for-byte with no unescaping step on
+        ///     the lookup path. Unescaping is only for DISPLAY.
         rule identifier() -> String
             = s:$([c if c.is_alphabetic() || c == '_']
-                  [c if c.is_alphanumeric() || c == '_' || c == '.']*) { s.to_string() }
+                  (['\\'] [_] / [c if c.is_alphanumeric() || c == '_' || c == '.'])*)
+              { s.to_string() }
 
         /// Parses a value, which can be a string, datetime, date, time, number, boolean, or null.
         rule value() -> Result<Value, ParseError>
