@@ -198,7 +198,7 @@ impl Expr {
                         name: identifier.to_owned(),
                     }
                 })?;
-                
+
                 // If the identifier maps to Null (wildcard), we might need to handle it carefully.
                 // For now, we return Null as the type, which needs to be compatible with others
                 // in Compare check. The `Type::eq` impl handles `Type::Null`.
